@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("N_m3u8DL-CLI")]
-[assembly: AssemblyDescription("一款命令行m3u8下载器")]
+[assembly: AssemblyTitle("m3u8dldr")]
+[assembly: AssemblyDescription("Modified by G, for hjmaster")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("nilaoda, modified by G")]
-[assembly: AssemblyProduct("N_m3u8DL-CLI")]
+[assembly: AssemblyProduct("m3u8dldr")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

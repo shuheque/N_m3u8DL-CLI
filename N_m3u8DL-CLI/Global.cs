@@ -738,12 +738,19 @@ namespace N_m3u8DL_CLI
             catch (Exception e)
             {
                 LOGGER.WriteLineError("DOWN: " + e.Message + " " + url);
-                try { File.Delete(path); } catch (Exception) { }
-                if (retry++ < 3)
+                if (!e.Message.Contains("(404)"))
                 {
-                    Thread.Sleep(1000);
-                    LOGGER.WriteLineError($"DOWN: AUTO RETRY {retry}/3 " + url);
-                    goto reDownload;
+                    try { File.Delete(path); } catch (Exception) { }
+                    if (retry++ < 3)
+                    {
+                        Thread.Sleep(1000);
+                        LOGGER.WriteLineError($"DOWN: AUTO RETRY {retry}/3 " + url);
+                        goto reDownload;
+                    }
+                }
+                else
+                {
+                    LOGGER.WriteLineError("DOWN: " + url + " not exists, skipping.");
                 }
             }
         }

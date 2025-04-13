@@ -40,6 +40,7 @@ namespace N_m3u8DL_CLI
         public static bool HasSetDir { get; set; } = false;
         public bool NoMerge { get; set; } = false;
         public bool MergeOnly { get; set; } = false;
+        public static uint EarlyEndPct { get; set; } = 100;
         public static int CalcTime { get; set; } = 1;            //计算速度的间隔
         public static int Count { get; set; } = 0;
         public static int PartsCount { get; set; } = 0;
@@ -373,7 +374,7 @@ namespace N_m3u8DL_CLI
             //检测是否下完
             IsComplete(Convert.ToInt32(segCount));
         }
-        
+
         public void IsComplete(int segCount)
         {
             int tsCount = 0;
@@ -384,13 +385,14 @@ namespace N_m3u8DL_CLI
                 goto ll;
             }
 
-            for (int i = 0; i < PartsCount; i++) 
+            for (int i = 0; i < PartsCount; i++)
             {
                 tsCount += Global.GetFileCount(DownDir + "\\Part_" + i.ToString(partsPadZero), ".ts");
             }
 
         ll:
-            if (tsCount != segCount && !MergeOnly)
+            float pct = (float)tsCount * 100.0f / (float)segCount;
+            if (pct < DownloadManager.EarlyEndPct && !MergeOnly)
             {
                 LOGGER.PrintLine(strings.downloadedCount + tsCount + " / " + segCount);
                 LOGGER.WriteLine(strings.downloadedCount + tsCount + " of " + segCount);
@@ -405,6 +407,11 @@ namespace N_m3u8DL_CLI
             }
             else  //开始合并
             {
+                if (pct < 100.0f)
+                {
+                    LOGGER.WriteLine($"Download finished {pct}% and passed early end point: {DownloadManager.EarlyEndPct}%");
+                }
+
                 LOGGER.PrintLine(strings.downloadComplete + (DisableIntegrityCheck ? "(" + strings.disableIntegrityCheck + ")" : ""));
                 if (NoMerge == false)
                 {

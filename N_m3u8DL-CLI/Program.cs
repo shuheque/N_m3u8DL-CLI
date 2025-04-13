@@ -241,6 +241,13 @@ namespace N_m3u8DL_CLI.NetCore
                 if (o.NoProxy) Global.NoProxy = true;
                 if (o.DisableIntegrityCheck) DownloadManager.DisableIntegrityCheck = true;
                 if (o.EnableAudioOnly) Global.VIDEO_TYPE = "IGNORE";
+                if (o.EarlyEndPct > 100 || o.EarlyEndPct < 60)
+                {
+                    LOGGER.PrintLine("Early End percentage must be 60 to 100, default to 100 as a full download.");
+                    o.EarlyEndPct = 100;
+                }
+                DownloadManager.EarlyEndPct = o.EarlyEndPct;
+                LOGGER.WriteLine($"Early End percentage set {o.EarlyEndPct}");
                 if (!string.IsNullOrEmpty(o.WorkDir))
                 {
                     workDir = Environment.ExpandEnvironmentVariables(o.WorkDir);

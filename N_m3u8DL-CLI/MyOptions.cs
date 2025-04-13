@@ -64,6 +64,9 @@ namespace N_m3u8DL_CLI
         [Option("proxyAddress", HelpText = "Help_proxyAddress", ResourceType = typeof(strings))]
         public string ProxyAddress { get; set; }
 
+        [Option("earlyEndPct", HelpText = "Help_earlyEndPct", ResourceType = typeof(strings))]
+        public uint EarlyEndPct { get; set; }
+
         [Option("enableDelAfterDone", HelpText = "Help_enableDelAfterDone", ResourceType = typeof(strings))]
         public bool EnableDelAfterDone { get; set; }
 

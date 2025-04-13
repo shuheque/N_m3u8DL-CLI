@@ -304,6 +304,15 @@ namespace N_m3u8DL_CLI {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Early End Percentage of M3U8 files, and skip downloading them if failed for the first time;.
+        /// </summary>
+        public static string Help_earlyEndPct {
+            get {
+                return ResourceManager.GetString("Help_earlyEndPct", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to 合并时仅封装音频轨道.
         /// </summary>
         public static string Help_enableAudioOnly {

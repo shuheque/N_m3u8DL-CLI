@@ -378,4 +378,7 @@
   <data name="Help_mergeOnly" xml:space="preserve">
     <value>Only do Merge, NO download!</value>
   </data>
+  <data name="Help_earlyEndPct" xml:space="preserve">
+    <value>Early End Percentage of M3U8 files, and skip downloading them if failed for the first time;</value>
+  </data>
 </root>
