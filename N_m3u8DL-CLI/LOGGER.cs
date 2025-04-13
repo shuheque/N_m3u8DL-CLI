@@ -116,9 +116,14 @@ namespace N_m3u8DL_CLI
                     sw.WriteLine(DateTime.Now.ToString("HH:mm:ss.fff") + " / (NORMAL) " + text, Encoding.UTF8);
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
-
+                StackTrace st = new StackTrace(e, true);
+                StackFrame frame = st.GetFrame(0);
+                string fileName = frame.GetFileName();
+                int lineNumber = frame.GetFileLineNumber();
+                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                LOGGER.WriteLine($"异常信息: {e.Message}");
             }
             finally
             {

@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("N_m3u8DL-CLI")]
 [assembly: AssemblyDescription("一款命令行m3u8下载器")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("nilaoda")]
+[assembly: AssemblyCompany("nilaoda, modified by G")]
 [assembly: AssemblyProduct("N_m3u8DL-CLI")]
-[assembly: AssemblyCopyright("Copyright ©  2022")]
+[assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

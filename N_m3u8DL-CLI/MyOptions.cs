@@ -88,6 +88,9 @@ namespace N_m3u8DL_CLI
         [Option("noMerge", HelpText = "Help_noMerge", ResourceType = typeof(strings))]
         public bool NoMerge { get; set; }
 
+        [Option("mergeOnly", HelpText = "Help_mergeOnly", ResourceType = typeof(strings))]
+        public bool mergeOnly { get; set; }
+
         [Option("noProxy", HelpText = "Help_noProxy", ResourceType = typeof(strings))]
         public bool NoProxy { get; set; }
 

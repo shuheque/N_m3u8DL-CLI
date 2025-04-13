@@ -39,6 +39,7 @@ namespace N_m3u8DL_CLI
         public static double ToDoSize { get; set; } = 0;   //待下载大小
         public static bool HasSetDir { get; set; } = false;
         public bool NoMerge { get; set; } = false;
+        public bool MergeOnly { get; set; } = false;
         public static int CalcTime { get; set; } = 1;            //计算速度的间隔
         public static int Count { get; set; } = 0;
         public static int PartsCount { get; set; } = 0;
@@ -103,22 +104,60 @@ namespace N_m3u8DL_CLI
             string isVOD = initJson["m3u8Info"]["vod"].ToString();
             try
             {
-                if (initJson["m3u8Info"]["audio"].ToString() != "")
+                if (!initJson["m3u8Info"].Contains("audio"))
+                {
+                    externalAudio = false;
+                    externalAudioUrl = "";
+                }
+                else if (initJson["m3u8Info"]["audio"].ToString() != "")
+                {
                     externalAudio = true;
-                externalAudioUrl = initJson["m3u8Info"]["audio"].ToString();
+                    externalAudioUrl = initJson["m3u8Info"]["audio"].ToString();
+                }
+                else
+                {
+                    externalAudio = false;
+                    externalAudioUrl = "";
+                }
                 LOGGER.WriteLine(strings.hasExternalAudioTrack);
                 LOGGER.PrintLine(strings.hasExternalAudioTrack, LOGGER.Warning);
             }
-            catch (Exception) {}
+            catch (Exception e) {
+                StackTrace st = new StackTrace(e, true);
+                StackFrame frame = st.GetFrame(0);
+                string fileName = frame.GetFileName();
+                int lineNumber = frame.GetFileLineNumber();
+                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                LOGGER.WriteLine($"异常信息: {e.Message}");
+            }
             try
             {
-                if (initJson["m3u8Info"]["sub"].ToString() != "")
+                if (!initJson["m3u8Info"].Contains("sub"))
+                {
+                    externalSub = false;
+                    externalSubUrl = "";
+                }
+                else if (initJson["m3u8Info"]["sub"].ToString() != "")
+                {
                     externalSub = true;
-                externalSubUrl = initJson["m3u8Info"]["sub"].ToString();
+                    externalSubUrl = initJson["m3u8Info"]["sub"].ToString();
+                }
+                else
+                {
+                    externalSub = false;
+                    externalSubUrl = "";
+                }
                 LOGGER.WriteLine(strings.hasExternalSubtitleTrack);
                 LOGGER.PrintLine(strings.hasExternalSubtitleTrack, LOGGER.Warning);
             }
-            catch (Exception) { }
+            catch (Exception e) {
+                StackTrace st = new StackTrace(e, true);
+                StackFrame frame = st.GetFrame(0);
+                string fileName = frame.GetFileName();
+                int lineNumber = frame.GetFileLineNumber();
+                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                LOGGER.WriteLine($"异常信息: {e.Message}");
+            }
             total = Convert.ToInt32(segCount);
             PartsCount = parts.Count;
             segsPadZero = string.Empty.PadRight(oriCount.Length, '0');
@@ -134,186 +173,202 @@ namespace N_m3u8DL_CLI
 
             if (!Directory.Exists(DownDir))
                 Directory.CreateDirectory(DownDir); //新建文件夹  
-            Watcher watcher = new Watcher(DownDir);
-            watcher.Total = total;
-            watcher.PartsCount = PartsCount;
-            watcher.WatcherStrat();
 
-            //开始计算速度
-            timer.Enabled = true;
-            cts = new CancellationTokenSource();
+            if (!MergeOnly)
+            {
+                Watcher watcher = new Watcher(DownDir);
+                watcher.Total = total;
+                watcher.PartsCount = PartsCount;
+                watcher.WatcherStrat();
 
-            //开始调用下载
-            LOGGER.WriteLine(strings.startDownloading);
-            LOGGER.PrintLine(strings.startDownloading, LOGGER.Warning);
+                //开始计算速度
+                timer.Enabled = true;
+                cts = new CancellationTokenSource();
+
+                //开始调用下载
+                LOGGER.WriteLine(strings.startDownloading);
+                LOGGER.PrintLine(strings.startDownloading, LOGGER.Warning);
 
             //下载MAP文件（若有）
             downloadMap:
-            if (HasExtMap)
-            {
-                LOGGER.PrintLine(strings.downloadingMapFile);
-                Downloader sd = new Downloader();
-                sd.TimeOut = TimeOut;
-                sd.FileUrl = initJson["m3u8Info"]["extMAP"].Value<string>();
-                sd.Headers = Headers;
-                sd.Method = "NONE";
-                if (sd.FileUrl.Contains("|"))  //有range
+                if (HasExtMap)
                 {
-                    string[] tmp = sd.FileUrl.Split('|');
-                    sd.FileUrl = tmp[0];
-                    sd.StartByte = Convert.ToUInt32(tmp[1].Split('@')[1]);
-                    sd.ExpectByte = Convert.ToUInt32(tmp[1].Split('@')[0]);
-                }
-                sd.SavePath = DownDir + "\\!MAP.tsdownloading";
-                if (File.Exists(sd.SavePath))
-                    File.Delete(sd.SavePath);
-                if (File.Exists(DownDir + "\\Part_0\\!MAP.ts"))
-                    File.Delete(DownDir + "\\Part_0\\!MAP.ts");
-                sd.Down();  //开始下载
-                if (!File.Exists(DownDir + "\\!MAP.ts")) //检测是否成功下载
-                {
-                    Thread.Sleep(1000);
-                    goto downloadMap;
-                }
-            }
-
-            //首先下载第一个分片
-            JToken firstSeg = JArray.Parse(parts[0].ToString())[0];
-            if (!File.Exists(DownDir + "\\Part_" + 0.ToString(partsPadZero) + "\\" + firstSeg["index"].Value<int>().ToString(segsPadZero) + ".ts"))
-            {
-                try
-                {
+                    LOGGER.PrintLine(strings.downloadingMapFile);
                     Downloader sd = new Downloader();
                     sd.TimeOut = TimeOut;
-                    sd.SegDur = firstSeg["duration"].Value<double>();
-                    if (sd.SegDur < 0) sd.SegDur = 0; //防止负数
-                    sd.FileUrl = firstSeg["segUri"].Value<string>();
-                    //VTT字幕
-                    if (isVTT == false && (sd.FileUrl.Trim('\"').EndsWith(".vtt") || sd.FileUrl.Trim('\"').EndsWith(".webvtt")))
-                        isVTT = true;
-                    sd.Method = firstSeg["method"].Value<string>();
-                    if (sd.Method != "NONE")
-                    {
-                        sd.Key = firstSeg["key"].Value<string>();
-                        sd.Iv = firstSeg["iv"].Value<string>();
-                    }
-                    if (firstSeg["expectByte"] != null)
-                        sd.ExpectByte = firstSeg["expectByte"].Value<long>();
-                    if (firstSeg["startByte"] != null)
-                        sd.StartByte = firstSeg["startByte"].Value<long>();
+                    sd.FileUrl = initJson["m3u8Info"]["extMAP"].Value<string>();
                     sd.Headers = Headers;
-                    sd.SavePath = DownDir + "\\Part_" + 0.ToString(partsPadZero) + "\\" + firstSeg["index"].Value<int>().ToString(segsPadZero) + ".tsdownloading";
+                    sd.Method = "NONE";
+                    if (sd.FileUrl.Contains("|"))  //有range
+                    {
+                        string[] tmp = sd.FileUrl.Split('|');
+                        sd.FileUrl = tmp[0];
+                        sd.StartByte = Convert.ToUInt32(tmp[1].Split('@')[1]);
+                        sd.ExpectByte = Convert.ToUInt32(tmp[1].Split('@')[0]);
+                    }
+                    sd.SavePath = DownDir + "\\!MAP.tsdownloading";
                     if (File.Exists(sd.SavePath))
                         File.Delete(sd.SavePath);
-                    LOGGER.PrintLine(strings.downloadingFirstSegement);
-                    if (!Global.ShouldStop)
-                        sd.Down();  //开始下载
+                    if (File.Exists(DownDir + "\\Part_0\\!MAP.ts"))
+                        File.Delete(DownDir + "\\Part_0\\!MAP.ts");
+                    sd.Down();  //开始下载
+                    if (!File.Exists(DownDir + "\\!MAP.ts")) //检测是否成功下载
+                    {
+                        Thread.Sleep(1000);
+                        goto downloadMap;
+                    }
+                }
+
+                //首先下载第一个分片
+                JToken firstSeg = JArray.Parse(parts[0].ToString())[0];
+                if (!File.Exists(DownDir + "\\Part_" + 0.ToString(partsPadZero) + "\\" + firstSeg["index"].Value<int>().ToString(segsPadZero) + ".ts"))
+                {
+                    try
+                    {
+                        Downloader sd = new Downloader();
+                        sd.TimeOut = TimeOut;
+                        sd.SegDur = firstSeg["duration"].Value<double>();
+                        if (sd.SegDur < 0) sd.SegDur = 0; //防止负数
+                        sd.FileUrl = firstSeg["segUri"].Value<string>();
+                        //VTT字幕
+                        if (isVTT == false && (sd.FileUrl.Trim('\"').EndsWith(".vtt") || sd.FileUrl.Trim('\"').EndsWith(".webvtt")))
+                            isVTT = true;
+                        sd.Method = firstSeg["method"].Value<string>();
+                        if (sd.Method != "NONE")
+                        {
+                            sd.Key = firstSeg["key"].Value<string>();
+                            sd.Iv = firstSeg["iv"].Value<string>();
+                        }
+                        if (firstSeg["expectByte"] != null)
+                            sd.ExpectByte = firstSeg["expectByte"].Value<long>();
+                        if (firstSeg["startByte"] != null)
+                            sd.StartByte = firstSeg["startByte"].Value<long>();
+                        sd.Headers = Headers;
+                        sd.SavePath = DownDir + "\\Part_" + 0.ToString(partsPadZero) + "\\" + firstSeg["index"].Value<int>().ToString(segsPadZero) + ".tsdownloading";
+                        if (File.Exists(sd.SavePath))
+                            File.Delete(sd.SavePath);
+                        LOGGER.PrintLine(strings.downloadingFirstSegement);
+                        if (!Global.ShouldStop)
+                            sd.Down();  //开始下载
+                    }
+                    catch (Exception e)
+                    {
+                        //LOG.WriteLineError(e.ToString());
+                        StackTrace st = new StackTrace(e, true);
+                        StackFrame frame = st.GetFrame(0);
+                        string fileName = frame.GetFileName();
+                        int lineNumber = frame.GetFileLineNumber();
+                        LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                        LOGGER.WriteLine($"异常信息: {e.Message}");
+                    }
+                }
+
+                if (Global.HadReadInfo == false)
+                {
+                    string href = DownDir + "\\Part_" + 0.ToString(partsPadZero) + "\\" + firstSeg["index"].Value<int>().ToString(segsPadZero) + ".ts";
+                    if (File.Exists(DownDir + "\\!MAP.ts"))
+                        href = DownDir + "\\!MAP.ts";
+                    Global.GzipHandler(href);
+                    bool flag = false;
+                    foreach (string ss in (string[])Global.GetVideoInfo(href).ToArray(typeof(string)))
+                    {
+                        LOGGER.WriteLine(ss.Trim());
+                        LOGGER.PrintLine(ss.Trim(), 0);
+                        if (ss.Trim().Contains("Error in reading file"))
+                            flag = true;
+                    }
+                    LOGGER.PrintLine(strings.waitForCompletion, LOGGER.Warning);
+                    if (!flag)
+                        Global.HadReadInfo = true;
+                }
+
+                //多线程设置
+                ParallelOptions parallelOptions = new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Threads,
+                    CancellationToken = cts.Token
+                };
+
+                //构造包含所有分片的新的segments
+                JArray segments = new JArray();
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    var tmp = JArray.Parse(parts[i].ToString());
+                    for (int j = 0; j < tmp.Count; j++)
+                    {
+                        JObject t = (JObject)tmp[j];
+                        t.Add("part", i);
+                        segments.Add(t);
+                    }
+                }
+
+                //剔除第一个分片（已下载过）
+                segments.RemoveAt(0);
+
+                try
+                {
+                    ParallelLoopResult result = Parallel.ForEach(segments,
+                        parallelOptions,
+                        () => new Downloader(),
+                        (info, loopstate, index, sd) =>
+                        {
+                            if (Global.ShouldStop)
+                                loopstate.Stop();
+                            else
+                            {
+                                sd.TimeOut = TimeOut;
+                                sd.SegDur = info["duration"].Value<double>();
+                                if (sd.SegDur < 0) sd.SegDur = 0; //防止负数
+                                sd.FileUrl = info["segUri"].Value<string>();
+                                //VTT字幕
+                                if (isVTT == false && (sd.FileUrl.Trim('\"').EndsWith(".vtt") || sd.FileUrl.Trim('\"').EndsWith(".webvtt")))
+                                    isVTT = true;
+                                sd.Method = info["method"].Value<string>();
+                                if (sd.Method != "NONE")
+                                {
+                                    sd.Key = info["key"].Value<string>();
+                                    sd.Iv = info["iv"].Value<string>();
+                                }
+                                if (firstSeg["expectByte"] != null)
+                                    sd.ExpectByte = info["expectByte"].Value<long>();
+                                if (firstSeg["startByte"] != null)
+                                    sd.StartByte = info["startByte"].Value<long>();
+                                sd.Headers = Headers;
+                                sd.SavePath = DownDir + "\\Part_" + info["part"].Value<int>().ToString(partsPadZero) + "\\" + info["index"].Value<int>().ToString(segsPadZero) + ".tsdownloading";
+                                if (File.Exists(sd.SavePath))
+                                    File.Delete(sd.SavePath);
+                                if (!Global.ShouldStop)
+                                    sd.Down();  //开始下载
+                            }
+                            return sd;
+                        },
+                        (sd) => { });
+
+                    if (result.IsCompleted)
+                    {
+                        //LOGGER.WriteLine("Part " + (info["part"].Value<int>() + 1).ToString(partsPadZero) + " of " + parts.Count + " Completed");
+                    }
                 }
                 catch (Exception e)
                 {
-                    //LOG.WriteLineError(e.ToString());
+                    ;//捕获取消循环产生的异常
+                    StackTrace st = new StackTrace(e, true);
+                    StackFrame frame = st.GetFrame(0);
+                    string fileName = frame.GetFileName();
+                    int lineNumber = frame.GetFileLineNumber();
+                    LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                    LOGGER.WriteLine($"异常信息: {e.Message}");
                 }
-            }
-
-            if (Global.HadReadInfo == false)
-            {
-                string href = DownDir + "\\Part_" + 0.ToString(partsPadZero) + "\\" + firstSeg["index"].Value<int>().ToString(segsPadZero) + ".ts";
-                if (File.Exists(DownDir + "\\!MAP.ts"))
-                    href = DownDir + "\\!MAP.ts";
-                Global.GzipHandler(href);
-                bool flag = false;
-                foreach (string ss in (string[])Global.GetVideoInfo(href).ToArray(typeof(string)))
+                finally
                 {
-                    LOGGER.WriteLine(ss.Trim());
-                    LOGGER.PrintLine(ss.Trim(), 0);
-                    if (ss.Trim().Contains("Error in reading file"))
-                        flag = true;
+                    cts.Dispose();
                 }
-                LOGGER.PrintLine(strings.waitForCompletion, LOGGER.Warning);
-                if (!flag)
-                    Global.HadReadInfo = true;
+
+                watcher.WatcherStop();
+
+                //停止速度监测
+                timer.Enabled = false;
             }
-
-            //多线程设置
-            ParallelOptions parallelOptions = new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Threads,
-                CancellationToken = cts.Token
-            };
-
-            //构造包含所有分片的新的segments
-            JArray segments = new JArray();
-            for (int i = 0; i < parts.Count; i++)
-            {
-                var tmp = JArray.Parse(parts[i].ToString());
-                for (int j = 0; j < tmp.Count; j++)
-                {
-                    JObject t = (JObject)tmp[j];
-                    t.Add("part", i);
-                    segments.Add(t);
-                }
-            }
-
-            //剔除第一个分片（已下载过）
-            segments.RemoveAt(0);
-
-            try
-            {
-                ParallelLoopResult result = Parallel.ForEach(segments,
-                    parallelOptions,
-                    () => new Downloader(),
-                    (info, loopstate, index, sd) =>
-                    {
-                        if (Global.ShouldStop)
-                            loopstate.Stop();
-                        else
-                        {
-                            sd.TimeOut = TimeOut;
-                            sd.SegDur = info["duration"].Value<double>();
-                            if (sd.SegDur < 0) sd.SegDur = 0; //防止负数
-                                sd.FileUrl = info["segUri"].Value<string>();
-                            //VTT字幕
-                            if (isVTT == false && (sd.FileUrl.Trim('\"').EndsWith(".vtt") || sd.FileUrl.Trim('\"').EndsWith(".webvtt")))
-                                isVTT = true;
-                            sd.Method = info["method"].Value<string>();
-                            if (sd.Method != "NONE")
-                            {
-                                sd.Key = info["key"].Value<string>();
-                                sd.Iv = info["iv"].Value<string>();
-                            }
-                            if (firstSeg["expectByte"] != null)
-                                sd.ExpectByte = info["expectByte"].Value<long>();
-                            if (firstSeg["startByte"] != null)
-                                sd.StartByte = info["startByte"].Value<long>();
-                            sd.Headers = Headers;
-                            sd.SavePath = DownDir + "\\Part_" + info["part"].Value<int>().ToString(partsPadZero) + "\\" + info["index"].Value<int>().ToString(segsPadZero) + ".tsdownloading";
-                            if (File.Exists(sd.SavePath))
-                                File.Delete(sd.SavePath);
-                            if (!Global.ShouldStop)
-                                sd.Down();  //开始下载
-                            }
-                        return sd;
-                    },
-                    (sd) => { });
-
-                if (result.IsCompleted)
-                {
-                    //LOGGER.WriteLine("Part " + (info["part"].Value<int>() + 1).ToString(partsPadZero) + " of " + parts.Count + " Completed");
-                }
-            }
-            catch (Exception)
-            {
-                ;//捕获取消循环产生的异常
-            }
-            finally
-            {
-                cts.Dispose();
-            }
-
-            watcher.WatcherStop();
-
-            //停止速度监测
-            timer.Enabled = false;
 
             //检测是否下完
             IsComplete(Convert.ToInt32(segCount));
@@ -335,7 +390,7 @@ namespace N_m3u8DL_CLI
             }
 
         ll:
-            if (tsCount != segCount)
+            if (tsCount != segCount && !MergeOnly)
             {
                 LOGGER.PrintLine(strings.downloadedCount + tsCount + " / " + segCount);
                 LOGGER.WriteLine(strings.downloadedCount + tsCount + " of " + segCount);
@@ -432,7 +487,8 @@ namespace N_m3u8DL_CLI
                                     string copyright = json["copyright"].Value<string>();
                                     string comment = json["comment"].Value<string>();
                                     string encodingTool = "";
-                                    try { encodingTool = json["encodingTool"].Value<string>(); } catch (Exception) {; }
+                                    try { encodingTool = json["encodingTool"].Value<string>(); } catch (Exception) {
+                                    }
                                     FFmpeg.Merge(Global.GetFiles(DownDir + "\\Part_0", ".ts"), muxFormat, fastStart, poster, audioName, title, copyright, comment, encodingTool);
                                 }
                                 //Global.CombineMultipleFilesIntoSingleFile(Global.GetFiles(DownDir + "\\Part_0", ".ts"), FFmpeg.OutPutPath + ".ts");
@@ -458,9 +514,18 @@ namespace N_m3u8DL_CLI
                                 DirectoryInfo directoryInfo = new DirectoryInfo(DownDir);
                                 directoryInfo.Delete(true);
                             }
-                            catch (Exception) { }
+                            catch (Exception e)
+                            {
+                                StackTrace st = new StackTrace(e, true);
+                                StackFrame frame = st.GetFrame(0);
+                                string fileName = frame.GetFileName();
+                                int lineNumber = frame.GetFileLineNumber();
+                                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                                LOGGER.WriteLine($"异常信息: {e.Message}");
+                            }
                         }
-                        if (externalAudio)  //下载独立音轨
+
+                        if (externalAudio && !MergeOnly)  //下载独立音轨
                         {
                             externalAudio = false;
                             DownloadedSize = 0;
@@ -484,7 +549,7 @@ namespace N_m3u8DL_CLI
                             Global.AUDIO_TYPE = "";
                             DoDownload();
                         }
-                        if (externalSub)  //下载独立字幕
+                        if (externalSub && !MergeOnly)  //下载独立字幕
                         {
                             externalSub = false;
                             DownloadedSize = 0;
@@ -529,7 +594,15 @@ namespace N_m3u8DL_CLI
                             DirectoryInfo directoryInfo = new DirectoryInfo(DownDir + "\\Part_" + i.ToString(partsPadZero));
                             directoryInfo.Delete(true);
                         }
-                        catch (Exception) { }
+                        catch (Exception e)
+                        {
+                            StackTrace st = new StackTrace(e, true);
+                            StackFrame frame = st.GetFrame(0);
+                            string fileName = frame.GetFileName();
+                            int lineNumber = frame.GetFileLineNumber();
+                            LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                            LOGGER.WriteLine($"异常信息: {e.Message}");
+                        }
                     }
                     
 
@@ -578,7 +651,16 @@ namespace N_m3u8DL_CLI
                                 string copyright = json["copyright"].Value<string>();
                                 string comment = json["comment"].Value<string>();
                                 string encodingTool = "";
-                                try { encodingTool = json["encodingTool"].Value<string>(); } catch (Exception) {; }
+                                try { encodingTool = json["encodingTool"].Value<string>(); }
+                                catch (Exception e)
+                                {
+                                    StackTrace st = new StackTrace(e, true);
+                                    StackFrame frame = st.GetFrame(0);
+                                    string fileName = frame.GetFileName();
+                                    int lineNumber = frame.GetFileLineNumber();
+                                    LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                                    LOGGER.WriteLine($"异常信息: {e.Message}");
+                                }
                                 FFmpeg.Merge(Global.GetFiles(DownDir, ".ts"), muxFormat, fastStart, poster, audioName, title, copyright, comment, encodingTool);
                             }
                         }
@@ -601,9 +683,16 @@ namespace N_m3u8DL_CLI
                             DirectoryInfo directoryInfo = new DirectoryInfo(DownDir);
                             directoryInfo.Delete(true);
                         }
-                        catch (Exception) { }
+                        catch (Exception e) {
+                            StackTrace st = new StackTrace(e, true);
+                            StackFrame frame = st.GetFrame(0);
+                            string fileName = frame.GetFileName();
+                            int lineNumber = frame.GetFileLineNumber();
+                            LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                            LOGGER.WriteLine($"异常信息: {e.Message}");
+                        }
                     }
-                    if (externalAudio)  //下载独立音轨
+                    if (externalAudio && !MergeOnly)  //下载独立音轨
                     {
                         externalAudio = false;
                         DownloadedSize = 0;
@@ -627,7 +716,7 @@ namespace N_m3u8DL_CLI
                         Global.AUDIO_TYPE = "";
                         DoDownload();
                     }
-                    if (externalSub)  //下载独立字幕
+                    if (externalSub && !MergeOnly)  //下载独立字幕
                     {
                         externalSub = false;
                         DownloadedSize = 0;
@@ -662,7 +751,7 @@ namespace N_m3u8DL_CLI
                         + "\r\n\r\nTask End: " + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"));
                     Environment.Exit(0);  //正常退出程序
                 }
-            }
+            }   // end merge start
         }
     }
 }

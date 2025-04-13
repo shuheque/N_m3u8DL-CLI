@@ -280,7 +280,7 @@
     <value>设定程序工作目录</value>
   </data>
   <data name="Help_saveName" xml:space="preserve">
-    <value>设定存储文件名(不包括后缀)</value>
+    <value>设定存储文件/目录名(不包括后缀)</value>
   </data>
   <data name="Help_input" xml:space="preserve">
     <value>链接或文件</value>
@@ -374,5 +374,8 @@
   </data>
   <data name="unregisterUrlProtocolSuccessful" xml:space="preserve">
     <value>取消注册m3u8dl链接协议成功！</value>
+  </data>
+  <data name="Help_mergeOnly" xml:space="preserve">
+    <value>Only do Merge, NO download!</value>
   </data>
 </root>

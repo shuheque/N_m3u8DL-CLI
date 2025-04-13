@@ -84,6 +84,7 @@ namespace N_m3u8DL_CLI
 
             }
 
+            LOGGER.WriteLine("Invoking FFMPEG with cmd: " + command + "\n");
             Run(FFMPEG_PATH, command, Path.GetDirectoryName(files[0]));
             LOGGER.WriteLine(strings.ffmpegDone);
             //Console.WriteLine(command);

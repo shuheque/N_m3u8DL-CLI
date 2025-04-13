@@ -70,7 +70,15 @@ namespace N_m3u8DL_CLI.NetCore
                 CultureInfo.DefaultThreadCurrentCulture = new CultureInfo(loc);
                 Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo(loc);
             }
-            catch (Exception) {; }
+            catch (Exception e)
+            {
+                StackTrace st = new StackTrace(e, true);
+                StackFrame frame = st.GetFrame(0);
+                string fileName = frame.GetFileName();
+                int lineNumber = frame.GetFileLineNumber();
+                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                LOGGER.WriteLine($"异常信息: {e.Message}");
+            }
 
             // 处理m3u8dl URL协议
             if (args.Length == 1)
@@ -112,6 +120,10 @@ namespace N_m3u8DL_CLI.NetCore
             {
                 FFmpeg.FFMPEG_PATH = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), "ffmpeg.exe");
             }
+            else if (File.Exists(Path.Combine("c:\\", "ffmpeg.exe")))
+            {
+                FFmpeg.FFMPEG_PATH = Path.Combine("c:\\", "ffmpeg.exe");
+            }
             else
             {
                 try
@@ -126,9 +138,14 @@ namespace N_m3u8DL_CLI.NetCore
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    ;
+                    StackTrace st = new StackTrace(e, true);
+                    StackFrame frame = st.GetFrame(0);
+                    string fileName = frame.GetFileName();
+                    int lineNumber = frame.GetFileLineNumber();
+                    LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                    LOGGER.WriteLine($"异常信息: {e.Message}");
                 }
 
                 Console.BackgroundColor = ConsoleColor.Red; //设置背景色
@@ -139,12 +156,14 @@ namespace N_m3u8DL_CLI.NetCore
                 Console.WriteLine();
                 Console.WriteLine("http://ffmpeg.org/download.html#build-windows");
                 Console.WriteLine();
+                Console.WriteLine("Or put ffmpeg.exe at c:\\");
                 Console.WriteLine(strings.pressAnyKeyExit);
                 Console.ReadKey();
                 Environment.Exit(-1);
             }
 
         HasFFmpeg:
+            Console.WriteLine("Found FFMPEG: " + FFmpeg.FFMPEG_PATH);
             if (!File.Exists(Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), "NO_UPDATE")))
             {
                 Thread checkUpdate = new Thread(() =>
@@ -306,14 +325,29 @@ namespace N_m3u8DL_CLI.NetCore
                 int inputRetryCount = 20;
             input:
                 string testurl = o.Input;
+                if (testurl == null) {
+                    testurl = "";
+                }
 
                 //重试太多次，退出
                 if (inputRetryCount == 0)
                     Environment.Exit(-1);
 
                 if (fileName == "")
+                {
+                    if (o.mergeOnly)
+                    {
+                        throw new Exception("Merge only, should specify dir name\n");
+                    }
                     fileName = Global.GetUrlFileName(testurl) + "_" + DateTime.Now.ToString("yyyyMMddHHmmss");
-
+                }
+                else if (o.mergeOnly)
+                {
+                    if (!Directory.Exists(fileName))
+                    {
+                        throw new Exception("Merge only, should specify dir name: " + fileName + ", PWD: " + Directory.GetCurrentDirectory());
+                    }
+                }
 
                 if (testurl.Contains("twitcasting") && testurl.Contains("/fmp4/"))
                 {
@@ -360,9 +394,13 @@ namespace N_m3u8DL_CLI.NetCore
                 LOGGER.PrintLine(strings.startParsing + " " + testurl, LOGGER.Warning);
                 if (testurl.EndsWith(".json") && File.Exists(testurl))  //可直接跳过解析
                 {
-                    if (!Directory.Exists(Path.Combine(workDir, fileName)))//若文件夹不存在则新建文件夹   
-                        Directory.CreateDirectory(Path.Combine(workDir, fileName)); //新建文件夹  
-                    File.Copy(testurl, Path.Combine(Path.Combine(workDir, fileName), "meta.json"), true);
+                    if (!o.mergeOnly)   // if merge only, suppose we have those
+                    {
+                        if (!Directory.Exists(Path.Combine(workDir, fileName)))//若文件夹不存在则新建文件夹   
+                            Directory.CreateDirectory(Path.Combine(workDir, fileName)); //新建文件夹  
+                        File.Copy(testurl, Path.Combine(Path.Combine(workDir, fileName), "meta.json"), true);
+                        // merge only, won't be any testurl
+                    }
                 }
                 else
                 {
@@ -414,7 +452,13 @@ namespace N_m3u8DL_CLI.NetCore
                             md.Threads = t;
                     }
                     md.TimeOut = (int)(o.TimeOut * 1000);
+                    if (o.mergeOnly && o.NoMerge)
+                    {
+                        Console.WriteLine("Merge options conflict!");
+                        return;
+                    }
                     md.NoMerge = o.NoMerge;
+                    md.MergeOnly = o.mergeOnly;
                     md.DownName = fileName;
                     md.DelAfterDone = o.EnableDelAfterDone;
                     md.MuxFormat = "mp4";
@@ -452,6 +496,12 @@ namespace N_m3u8DL_CLI.NetCore
             catch (Exception ex)
             {
                 LOGGER.PrintLine(ex.Message, LOGGER.Error);
+                StackTrace st = new StackTrace(ex, true);
+                StackFrame frame = st.GetFrame(0);
+                string fileName = frame.GetFileName();
+                int lineNumber = frame.GetFileLineNumber();
+                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                LOGGER.WriteLine($"异常信息: {ex.Message}");
             }
         }
 
@@ -479,6 +529,12 @@ namespace N_m3u8DL_CLI.NetCore
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                StackTrace st = new StackTrace(e, true);
+                StackFrame frame = st.GetFrame(0);
+                string fileName = frame.GetFileName();
+                int lineNumber = frame.GetFileLineNumber();
+                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                LOGGER.WriteLine($"异常信息: {e.Message}");
             }
 
             return false;
@@ -494,6 +550,12 @@ namespace N_m3u8DL_CLI.NetCore
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                StackTrace st = new StackTrace(e, true);
+                StackFrame frame = st.GetFrame(0);
+                string fileName = frame.GetFileName();
+                int lineNumber = frame.GetFileLineNumber();
+                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+                LOGGER.WriteLine($"异常信息: {e.Message}");
             }
 
             return false;
