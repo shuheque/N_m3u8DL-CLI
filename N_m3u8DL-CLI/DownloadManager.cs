@@ -325,7 +325,9 @@ namespace N_m3u8DL_CLI
                         (info, loopstate, index, sd) =>
                         {
                             if (Global.ShouldStop)
+                            {
                                 loopstate.Stop();
+                            }
                             else
                             {
                                 sd.TimeOut = TimeOut;
@@ -353,15 +355,14 @@ namespace N_m3u8DL_CLI
                                     File.Delete(sd.SavePath);
                                 if (!Global.ShouldStop)
                                     sd.Down();  //开始下载
+                                if (sd.IsCode40X)
+                                {
+                                    DownloadManager.incr404();
+                                }
                             }
                             return sd;
                         },
-                        (sd) => {
-                            if (sd.IsCode40X)
-                            {
-                                DownloadManager.incr404();
-                            }
-                        });
+                        (sd) => { });
 
                     if (result.IsCompleted)
                     {
