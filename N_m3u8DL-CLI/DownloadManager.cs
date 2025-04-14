@@ -25,6 +25,17 @@ namespace N_m3u8DL_CLI
         string fflogName = "_ffreport.log";
         public static bool BinaryMerge = false;
 
+        private static int countTS404 = 0;    // updated by downloader threads, must be interlocked
+        public static int incr404()
+        {
+            return Interlocked.Increment(ref DownloadManager.countTS404);
+        }
+
+        public static int clr404()
+        {
+            return Interlocked.CompareExchange(ref DownloadManager.countTS404, 0, DownloadManager.countTS404);
+        }
+
         public int Threads { get; set; } = 1;
         public int RetryCount { get; set; } = 5;
         public string Headers { get; set; } = string.Empty;
@@ -335,6 +346,8 @@ namespace N_m3u8DL_CLI
                                 if (firstSeg["startByte"] != null)
                                     sd.StartByte = info["startByte"].Value<long>();
                                 sd.Headers = Headers;
+                                sd.SegIndex = info["index"].Value<int>();
+                                sd.TotalSegs = Convert.ToInt32(segCount);
                                 sd.SavePath = DownDir + "\\Part_" + info["part"].Value<int>().ToString(partsPadZero) + "\\" + info["index"].Value<int>().ToString(segsPadZero) + ".tsdownloading";
                                 if (File.Exists(sd.SavePath))
                                     File.Delete(sd.SavePath);
@@ -343,7 +356,12 @@ namespace N_m3u8DL_CLI
                             }
                             return sd;
                         },
-                        (sd) => { });
+                        (sd) => {
+                            if (sd.IsCode40X)
+                            {
+                                DownloadManager.incr404();
+                            }
+                        });
 
                     if (result.IsCompleted)
                     {
@@ -391,6 +409,13 @@ namespace N_m3u8DL_CLI
             }
 
         ll:
+            // as long as EarlyEnd set, Just skip to make sure we can go merging
+            if (DownloadManager.EarlyEndPct < 100)
+            {
+                tsCount += DownloadManager.countTS404;
+            }
+            DownloadManager.clr404();
+
             float pct = (float)tsCount * 100.0f / (float)segCount;
             if (pct < DownloadManager.EarlyEndPct && !MergeOnly)
             {

@@ -67,7 +67,7 @@ namespace N_m3u8DL_CLI
             {
                 windowWith = Console.WindowWidth;
             }
-            catch (Exception e)
+            catch (Exception )
             {
                // empty
             }

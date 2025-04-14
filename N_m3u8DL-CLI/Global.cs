@@ -17,6 +17,12 @@ namespace N_m3u8DL_CLI
 {
     class Global
     {
+        public enum HttpRespStatus
+        {
+            UNKNOWN,
+            HTTP40X
+        };
+
         private volatile static bool shouldStop = false;
         public static long BYTEDOWN = 0;
         public static long STOP_SPEED = 0; //KB 小于此值自动重试
@@ -35,16 +41,18 @@ namespace N_m3u8DL_CLI
         /*===============================================================================*/
         static Version ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         static string nowVer = $"{ver.Major}.{ver.Minor}.{ver.Build}";
-        static string nowDate = "20220711";
+        static string nowDate = "20250414";
         public static void WriteInit()
         {
-            Console.WriteLine($"N_m3u8DL-CLI version {nowVer} 2018-2022");
+            Console.WriteLine(" ----------------------------------- ");
+            Console.WriteLine($"{System.Reflection.Assembly.GetEntryAssembly().GetName().Name} version {nowVer} 2018-2025");
             Console.WriteLine($"  built date: {nowDate}");
-            Console.WriteLine();
+            Console.WriteLine(" ----------------------------------- ");
         }
 
         public static void CheckUpdate()
         {
+            return;
             try
             {
                 string redirctUrl = Get302("https://github.com/nilaoda/N_m3u8DL-CLI/releases/latest");
@@ -600,8 +608,9 @@ namespace N_m3u8DL_CLI
         /// <summary>
         /// Http下载文件
         /// </summary>
-        public static void HttpDownloadFile(string url, string path, int timeOut = 20000, string headers = "", long startByte = 0, long expectByte = -1)
+        public static HttpRespStatus HttpDownloadFile(string url, string path, int timeOut = 20000, string headers = "", long startByte = 0, long expectByte = -1)
         {
+            HttpRespStatus rtncode = HttpRespStatus.UNKNOWN;
             int retry = 0;
             reDownload:
             try
@@ -609,7 +618,7 @@ namespace N_m3u8DL_CLI
                 if (File.Exists(path))
                     File.Delete(path);
                 if (shouldStop)
-                    return;
+                    return rtncode;
 
                 reProcess:
                 HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
@@ -738,7 +747,7 @@ namespace N_m3u8DL_CLI
             catch (Exception e)
             {
                 LOGGER.WriteLineError("DOWN: " + e.Message + " " + url);
-                if (!e.Message.Contains("(404)"))
+                if (!e.Message.Contains("(404)") && !e.Message.Contains("(400)"))
                 {
                     try { File.Delete(path); } catch (Exception) { }
                     if (retry++ < 3)
@@ -751,8 +760,10 @@ namespace N_m3u8DL_CLI
                 else
                 {
                     LOGGER.WriteLineError("DOWN: " + url + " not exists, skipping.");
+                    rtncode = HttpRespStatus.HTTP40X;
                 }
             }
+            return rtncode;
         }
 
         /// <summary>

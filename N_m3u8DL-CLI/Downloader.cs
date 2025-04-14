@@ -16,6 +16,8 @@ namespace N_m3u8DL_CLI
         private int retry = 5;
         private int count = 0;
         private int segIndex = 0;
+        private int totalSegs = 0;
+        private bool isCode40X = false;
         private double segDur = 0;
         private string fileUrl = string.Empty;
         private string savePath = string.Empty;
@@ -41,6 +43,8 @@ namespace N_m3u8DL_CLI
         public int Retry { get => retry; set => retry = value; }
         public bool IsDone { get => isDone; set => isDone = value; }
         public int SegIndex { get => segIndex; set => segIndex = value; }
+        public int TotalSegs { get => totalSegs; set => totalSegs = value; }
+        public bool IsCode40X { get => isCode40X; set => isCode40X = value; }
         public int TimeOut { get => timeOut; set => timeOut = value; }
         public FileStream LiveStream { get => liveStream; set => liveStream = value; }
         public string LiveFile { get => liveFile; set => liveFile = value; }
@@ -71,6 +75,7 @@ namespace N_m3u8DL_CLI
         {
             try
             {
+                IsCode40X = false;
                 //直播下载
                 if (IsLive)
                 {
@@ -177,7 +182,7 @@ namespace N_m3u8DL_CLI
                     else
                     {
                         //下载
-                        Global.HttpDownloadFile(fileUrl, savePath, TimeOut, Headers, StartByte, ExpectByte);
+                        IsCode40X = Global.HttpDownloadFile(fileUrl, savePath, TimeOut, Headers, StartByte, ExpectByte) == Global.HttpRespStatus.HTTP40X;
                     }
                 }
                 if (File.Exists(savePath) && Global.ShouldStop == false) 
