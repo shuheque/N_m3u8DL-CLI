@@ -67,12 +67,13 @@ namespace N_m3u8DL_CLI
             timer.AutoReset = true;
             timer.Elapsed += delegate
             {
+                long bd = Global.BYTEDOWN != 0 ? Global.BYTEDOWN : 1;
                 var eta = "";
                 if (ToDoSize != 0)
                 {
-                    eta = " @ " + Global.FormatTime(Convert.ToInt32(ToDoSize / (Global.BYTEDOWN / CalcTime)));
+                    eta = " @ " + Global.FormatTime(Convert.ToInt32(ToDoSize / (bd / CalcTime)));
                 }
-                var print = Global.FormatFileSize((Global.BYTEDOWN) / CalcTime) + "/s" + eta;
+                var print = Global.FormatFileSize((bd) / CalcTime) + "/s" + eta;
                 ProgressReporter.Report("", "(" + print + ")");
 
                 if (Global.HadReadInfo && Global.BYTEDOWN <= Global.STOP_SPEED * 1024 * CalcTime)
@@ -81,9 +82,9 @@ namespace N_m3u8DL_CLI
                     eta = "";
                     if (ToDoSize != 0)
                     {
-                        eta = " @ " + Global.FormatTime(Convert.ToInt32(ToDoSize / (Global.BYTEDOWN / CalcTime)));
+                        eta = " @ " + Global.FormatTime(Convert.ToInt32(ToDoSize / (bd / CalcTime)));
                     }
-                    print = Global.FormatFileSize((Global.BYTEDOWN) / CalcTime) + "/s [" + stopCount + "]" + eta;
+                    print = Global.FormatFileSize((bd) / CalcTime) + "/s [" + stopCount + "]" + eta;
                     ProgressReporter.Report("", "(" + print + ")");
 
                     if (stopCount >= 12)

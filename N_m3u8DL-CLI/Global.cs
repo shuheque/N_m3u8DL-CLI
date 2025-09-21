@@ -902,7 +902,8 @@ namespace N_m3u8DL_CLI
             }
             using (Process p = new Process())
             {
-                p.StartInfo.FileName = "ffmpeg";
+                //p.StartInfo.FileName = "ffmpeg";
+                p.StartInfo.FileName = FFmpeg.FFMPEG_PATH;
                 p.StartInfo.Arguments = cmd;
                 p.StartInfo.UseShellExecute = false;        //是否使用操作系统shell启动
                 p.StartInfo.RedirectStandardInput = true;   //接受来自调用程序的输入信息
