@@ -880,7 +880,15 @@ namespace N_m3u8DL_CLI
                         {
                             if (keyUrl.Contains("https://keydeliver.linetv.tw/jurassicPark"))  //linetv
                                 keyUrl = keyUrl + "?time=" + Global.GetTimeStamp(false);
-                            key[1] = Convert.ToBase64String(Global.HttpDownloadFileToBytes(keyUrl, Headers));
+                            // HTTPS use HttpLib
+                            if (key[1].StartsWith("https"))
+                            {
+                                key[1] = Convert.ToBase64String(Global.HttpDownloadFileToBytesNew(keyUrl, Headers).ToArray());
+                            }
+                            else
+                            {
+                                key[1] = Convert.ToBase64String(Global.HttpDownloadFileToBytes(keyUrl, Headers));
+                            }
                         }
                     }
                     //DMM网站

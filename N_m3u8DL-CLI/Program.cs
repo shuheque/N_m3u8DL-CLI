@@ -50,6 +50,13 @@ namespace N_m3u8DL_CLI.NetCore
 
         static void Main(string[] args)
         {
+
+            // Test HTTP
+            //Global.HttpDownloadFileToBytesNew(
+            //    "https://blog.csdn.net/qq_36964509/article/details/140364392"
+            //);
+            //return;
+
             /******************************************************/
             SetConsoleCtrlHandler(cancelHandler, true);
             ServicePointManager.ServerCertificateValidationCallback = ValidateServerCertificate;

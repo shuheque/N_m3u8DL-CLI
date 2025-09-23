@@ -1,4 +1,5 @@
 ﻿using BrotliSharpLib;
+using Microsoft.Build.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections;
@@ -8,10 +9,17 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Shapes;
+
+using Task = System.Threading.Tasks.Task;
+using Path = System.IO.Path;
 
 namespace N_m3u8DL_CLI
 {
@@ -53,43 +61,43 @@ namespace N_m3u8DL_CLI
         public static void CheckUpdate()
         {
             return;
-            try
-            {
-                string redirctUrl = Get302("https://github.com/nilaoda/N_m3u8DL-CLI/releases/latest");
-                string latestVer = redirctUrl.Replace("https://github.com/nilaoda/N_m3u8DL-CLI/releases/tag/", "");
-                if (nowVer != latestVer && !latestVer.StartsWith("https"))
-                {
-                    Console.Title = string.Format(strings.newerVisionDetected, latestVer);
-                    try
-                    {
-                        //尝试下载新版本
-                        string url = $"https://mirror.ghproxy.com/https://github.com/nilaoda/N_m3u8DL-CLI/releases/download/{latestVer}/N_m3u8DL-CLI_v{latestVer}.exe";
-                        if (File.Exists(Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"N_m3u8DL-CLI_v{latestVer}.exe")))
-                        {
-                            Console.Title = string.Format(strings.newerVerisonDownloaded, latestVer);
-                            return;
-                        }
-                        HttpDownloadFile(url, Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"N_m3u8DL-CLI_v{latestVer}.exe"));
-                        if (File.Exists(Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"N_m3u8DL-CLI_v{latestVer}.exe")))
-                            Console.Title = string.Format(strings.newerVerisonDownloaded, latestVer);
-                        else
-                            Console.Title = string.Format(strings.newerVerisonDownloadFailed, latestVer);
-                    }
-                    catch (Exception)
-                    {
-                        ;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                StackTrace st = new StackTrace(e, true);
-                StackFrame frame = st.GetFrame(0);
-                string fileName = frame.GetFileName();
-                int lineNumber = frame.GetFileLineNumber();
-                LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
-                LOGGER.WriteLine($"异常信息: {e.Message}");
-            }
+            //try
+            //{
+            //    string redirctUrl = Get302("https://github.com/nilaoda/N_m3u8DL-CLI/releases/latest");
+            //    string latestVer = redirctUrl.Replace("https://github.com/nilaoda/N_m3u8DL-CLI/releases/tag/", "");
+            //    if (nowVer != latestVer && !latestVer.StartsWith("https"))
+            //    {
+            //        Console.Title = string.Format(strings.newerVisionDetected, latestVer);
+            //        try
+            //        {
+            //            //尝试下载新版本
+            //            string url = $"https://mirror.ghproxy.com/https://github.com/nilaoda/N_m3u8DL-CLI/releases/download/{latestVer}/N_m3u8DL-CLI_v{latestVer}.exe";
+            //            if (File.Exists(Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"N_m3u8DL-CLI_v{latestVer}.exe")))
+            //            {
+            //                Console.Title = string.Format(strings.newerVerisonDownloaded, latestVer);
+            //                return;
+            //            }
+            //            HttpDownloadFile(url, Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"N_m3u8DL-CLI_v{latestVer}.exe"));
+            //            if (File.Exists(Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), $"N_m3u8DL-CLI_v{latestVer}.exe")))
+            //                Console.Title = string.Format(strings.newerVerisonDownloaded, latestVer);
+            //            else
+            //                Console.Title = string.Format(strings.newerVerisonDownloadFailed, latestVer);
+            //        }
+            //        catch (Exception)
+            //        {
+            //            ;
+            //        }
+            //    }
+            //}
+            //catch (Exception e)
+            //{
+            //    StackTrace st = new StackTrace(e, true);
+            //    StackFrame frame = st.GetFrame(0);
+            //    string fileName = frame.GetFileName();
+            //    int lineNumber = frame.GetFileLineNumber();
+            //    LOGGER.WriteLine($"异常发生在文件 {fileName} 的第 {lineNumber} 行");
+            //    LOGGER.WriteLine($"异常信息: {e.Message}");
+            //}
         }
 
         public static string GetValidFileName(string input, string re = ".")
@@ -1309,6 +1317,76 @@ namespace N_m3u8DL_CLI
                 File.WriteAllText(vtts[i], Regex.Replace(tmp, "X-TIMESTAMP-MAP=.*", ""), Encoding.UTF8);
             }
             //Console.ReadLine();
+        }
+
+
+        public static HttpClient httpClient = new HttpClient();
+        /// <summary>
+        /// 下载URL对应的文件内容到MemoryStream
+        /// </summary>
+        /// <param name="url">文件的URL地址</param>
+        /// <param name="headers">自定义请求头，格式为"HeaderName1:Value1,HeaderName2:Value2"</param>
+        /// <param name="timeOut">超时时间(毫秒)，默认60000毫秒</param>
+        /// <returns>包含文件内容的MemoryStream</returns>
+        /// <exception cref="ArgumentNullException">当url为null或空时抛出</exception>
+        /// <exception cref="HttpRequestException">当HTTP请求失败时抛出</exception>
+        public static MemoryStream HttpDownloadFileToBytesNew(string url, string headers = "", int timeOut = 60000)
+        {
+            // 验证URL参数
+            if (string.IsNullOrWhiteSpace(url))
+                throw new ArgumentNullException(nameof(url), "URL不能为空");
+
+            // 同步调用异步方法
+            return Task.Run(() => DownloadFileAsync(url, headers, timeOut)).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// 异步下载文件到MemoryStream
+        /// </summary>
+        private static async Task<MemoryStream> DownloadFileAsync(string url, string headers, int timeOut)
+        {
+            {
+                httpClient.Timeout = TimeSpan.FromMilliseconds(timeOut);
+
+                // 添加自定义请求头
+                if (!string.IsNullOrWhiteSpace(headers))
+                {
+                    var headerPairs = headers.Split(',');
+                    foreach (var pair in headerPairs)
+                    {
+                        var parts = pair.Split(new[] { ':' }, 2); // C#7.3中需要显式数组初始化
+                        if (parts.Length == 2)
+                        {
+                            var headerName = parts[0].Trim();
+                            var headerValue = parts[1].Trim();
+
+                            // 尝试添加请求头，跳过受限制的头
+                            if (!httpClient.DefaultRequestHeaders.TryAddWithoutValidation(headerName, headerValue))
+                            {
+                                // 可在此处添加日志记录
+                            }
+                        }
+                    }
+                }
+
+                // 发送GET请求
+                using (var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false))
+                {
+                    // 确保响应成功
+                    response.EnsureSuccessStatusCode();
+
+                    // 创建MemoryStream并将响应内容复制到其中
+                    var memoryStream = new MemoryStream();
+                    using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    {
+                        await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
+                    }
+
+                    // 将流位置重置到开始，以便读取
+                    memoryStream.Position = 0;
+                    return memoryStream;
+                }
+            }
         }
     }
 }
